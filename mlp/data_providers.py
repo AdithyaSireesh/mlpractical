@@ -133,11 +133,11 @@ class MNISTDataProvider(DataProvider):
         super(MNISTDataProvider, self).__init__(
             inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
 
-    # def next(self):
-    #    """Returns next data batch or raises `StopIteration` if at end."""
-    #    inputs_batch, targets_batch = super(MNISTDataProvider, self).next()
-    #    return inputs_batch, self.to_one_of_k(targets_batch)
-    #
+    def next(self):
+        """Returns next data batch or raises `StopIteration` if at end."""
+        inputs_batch, targets_batch = super(MNISTDataProvider, self).next()
+        return inputs_batch, self.to_one_of_k(targets_batch)
+    
     def __next__(self):
         return self.next()
 
@@ -156,9 +156,11 @@ class MNISTDataProvider(DataProvider):
             to zero except for the column corresponding to the correct class
             which is equal to one.
         """
-        raise NotImplementedError()
-
-
+        encoded = np.zeros((len(int_targets), self.num_classes))
+        for i, target in enumerate(int_targets):
+            encoded[i, target] = 1
+        return encoded
+    
 class MetOfficeDataProvider(DataProvider):
     """South Scotland Met Office weather data provider."""
 
@@ -188,19 +190,22 @@ class MetOfficeDataProvider(DataProvider):
             'Data file does not exist at expected path: ' + data_path
         )
         # load raw data from text file
-        # ...
+        raw_data = np.loadtxt(data_path, skiprows=3, dtype=np.float32)
+        raw_data = raw_data[:,2:]
         # filter out all missing datapoints and flatten to a vector
-        # ...
+        filtered_data = np.ndarray.flatten(np.delete(raw_data, -99.99))
         # normalise data to zero mean, unit standard deviation
-        # ...
+        data_mean = np.mean(filtered_data)
+        data_std = np.std(filtered_data)
+        normalized_data = (filtered_data - data_mean)/data_std
         # convert from flat sequence to windowed data
-        # ...
+        windowed_data = normalized_data.reshape(int(normalized_data.size/window_size), window_size)
         # inputs are first (window_size - 1) entries in windows
-        # inputs = ...
+        inputs = windowed_data[:, :-1] 
         # targets are last entry in windows
-        # targets = ...
+        targets = windowed_data[:, -1]
         # initialise base class with inputs and targets arrays
-        # super(MetOfficeDataProvider, self).__init__(
-        #     inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
+        super(MetOfficeDataProvider, self).__init__(
+           inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
     def __next__(self):
             return self.next()
